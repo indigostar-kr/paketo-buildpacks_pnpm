@@ -23,21 +23,21 @@ type Asset struct {
 	BrowserDownloadUrl string `json:"browser_download_url"`
 }
 
-type YarnMetadata struct {
+type PnpmMetadata struct {
 	SemverVersion *semver.Version
 }
 
-func (yarnMetadata YarnMetadata) Version() *semver.Version {
-	return yarnMetadata.SemverVersion
+func (pnpmMetadata PnpmMetadata) Version() *semver.Version {
+	return pnpmMetadata.SemverVersion
 }
 
 func main() {
-	retrieve.NewMetadata("yarn", getAllVersions, generateMetadata)
+	retrieve.NewMetadata("pnpm", getAllVersions, generateMetadata)
 }
 
 func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionology.Dependency, error) {
 	version := versionFetcher.Version().String()
-	releases, err := NewGithubClient(NewWebClient()).GetReleaseTags("yarnpkg", "yarn")
+	releases, err := NewGithubClient(NewWebClient()).GetReleaseTags("pnpmpkg", "pnpm")
 	if err != nil {
 		return nil, fmt.Errorf("could not get releases: %w", err)
 	}
@@ -47,7 +47,7 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		if release.TagName == tagName {
 			dependency, err := createDependencyVersion(version, tagName, release)
 			if err != nil {
-				return nil, fmt.Errorf("could not create yarn version: %w", err)
+				return nil, fmt.Errorf("could not create pnpm version: %w", err)
 			}
 
 			return []versionology.Dependency{{
@@ -57,12 +57,12 @@ func generateMetadata(versionFetcher versionology.VersionFetcher) ([]versionolog
 		}
 	}
 
-	return nil, fmt.Errorf("could not find yarn version %s", version)
+	return nil, fmt.Errorf("could not find pnpm version %s", version)
 }
 
 func getAllVersions() (versionology.VersionFetcherArray, error) {
 	githubClient := NewGithubClient(NewWebClient())
-	releases, err := githubClient.GetReleaseTags("yarnpkg", "yarn")
+	releases, err := githubClient.GetReleaseTags("pnpmpkg", "pnpm")
 	if err != nil {
 		return nil, fmt.Errorf("could not get releases: %w", err)
 	}
@@ -82,7 +82,7 @@ func getAllVersions() (versionology.VersionFetcherArray, error) {
 			continue
 		}
 
-		versions = append(versions, YarnMetadata{version})
+		versions = append(versions, PnpmMetadata{version})
 	}
 
 	return versions, nil
@@ -92,20 +92,20 @@ func getAllVersions() (versionology.VersionFetcherArray, error) {
 func createDependencyVersion(version, tagName string, release GithubRelease) (cargo.ConfigMetadataDependency, error) {
 	webClient := NewWebClient()
 	githubClient := NewGithubClient(webClient)
-	yarnGPGKey, err := webClient.Get("https://dl.yarnpkg.com/debian/pubkey.gpg")
+	pnpmGPGKey, err := webClient.Get("https://dl.pnpmpkg.com/debian/pubkey.gpg")
 	if err != nil {
-		return cargo.ConfigMetadataDependency{}, fmt.Errorf("could not get yarn GPG key: %w", err)
+		return cargo.ConfigMetadataDependency{}, fmt.Errorf("could not get pnpm GPG key: %w", err)
 	}
 
-	releaseAssetDir, err := os.MkdirTemp("", "yarn")
+	releaseAssetDir, err := os.MkdirTemp("", "pnpm")
 	if err != nil {
 		return cargo.ConfigMetadataDependency{}, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(releaseAssetDir)
-	releaseAssetPath := filepath.Join(releaseAssetDir, fmt.Sprintf("yarn-%s.tar.gz", tagName))
+	releaseAssetPath := filepath.Join(releaseAssetDir, fmt.Sprintf("pnpm-%s.tar.gz", tagName))
 
-	assetName := fmt.Sprintf("yarn-%s.tar.gz", tagName)
-	assetUrl, err := githubClient.DownloadReleaseAsset("yarnpkg", "yarn", tagName, assetName, releaseAssetPath)
+	assetName := fmt.Sprintf("pnpm-%s.tar.gz", tagName)
+	assetUrl, err := githubClient.DownloadReleaseAsset("pnpmpkg", "pnpm", tagName, assetName, releaseAssetPath)
 	if err != nil {
 		if errors.Is(err, AssetNotFound{AssetName: assetName}) {
 			return cargo.ConfigMetadataDependency{}, NoSourceCodeError{Version: version}
@@ -124,13 +124,13 @@ func createDependencyVersion(version, tagName string, release GithubRelease) (ca
 		return cargo.ConfigMetadataDependency{}, fmt.Errorf("could not unmarshal asset url content: %w", err)
 	}
 
-	assetName = fmt.Sprintf("yarn-%s.tar.gz.asc", tagName)
-	releaseAssetSignature, err := githubClient.GetReleaseAsset("yarnpkg", "yarn", tagName, assetName)
+	assetName = fmt.Sprintf("pnpm-%s.tar.gz.asc", tagName)
+	releaseAssetSignature, err := githubClient.GetReleaseAsset("pnpmpkg", "pnpm", tagName, assetName)
 	if err != nil {
 		return cargo.ConfigMetadataDependency{}, fmt.Errorf("could not get release artifact signature: %w", err)
 	}
 
-	err = verifyASC(string(releaseAssetSignature), releaseAssetPath, string(yarnGPGKey))
+	err = verifyASC(string(releaseAssetSignature), releaseAssetPath, string(pnpmGPGKey))
 	if err != nil {
 		return cargo.ConfigMetadataDependency{}, fmt.Errorf("release artifact signature verification failed: %w", err)
 	}
@@ -141,12 +141,12 @@ func createDependencyVersion(version, tagName string, release GithubRelease) (ca
 	}
 
 	return cargo.ConfigMetadataDependency{
-		CPE:             fmt.Sprintf("cpe:2.3:a:yarnpkg:yarn:%s:*:*:*:*:*:*:*", version),
+		CPE:             fmt.Sprintf("cpe:2.3:a:pnpmpkg:pnpm:%s:*:*:*:*:*:*:*", version),
 		Checksum:        fmt.Sprintf("sha256:%s", dependencySHA),
-		ID:              "yarn",
+		ID:              "pnpm",
 		Licenses:        retrieve.LookupLicenses(asset.BrowserDownloadUrl, upstream.DefaultDecompress),
-		Name:            "Yarn",
-		PURL:            retrieve.GeneratePURL("yarn", version, dependencySHA, asset.BrowserDownloadUrl),
+		Name:            "Pnpm",
+		PURL:            retrieve.GeneratePURL("pnpm", version, dependencySHA, asset.BrowserDownloadUrl),
 		Source:          asset.BrowserDownloadUrl,
 		SourceChecksum:  fmt.Sprintf("sha256:%s", dependencySHA),
 		Stacks:          []string{"io.buildpacks.stacks.bionic", "io.buildpacks.stacks.jammy"},

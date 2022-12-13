@@ -1,4 +1,4 @@
-package yarn_test
+package pnpm_test
 
 import (
 	"bytes"
@@ -12,8 +12,8 @@ import (
 	"github.com/paketo-buildpacks/packit/v2/postal"
 	"github.com/paketo-buildpacks/packit/v2/sbom"
 	"github.com/paketo-buildpacks/packit/v2/scribe"
-	"github.com/paketo-buildpacks/yarn"
-	"github.com/paketo-buildpacks/yarn/fakes"
+	"github.com/paketo-buildpacks/pnpm"
+	"github.com/paketo-buildpacks/pnpm/fakes"
 	"github.com/sclevine/spec"
 
 	//nolint Ignore SA1019, informed usage of deprecated package
@@ -51,22 +51,22 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 
 		dependencyManager = &fakes.DependencyManager{}
 		dependencyManager.ResolveCall.Returns.Dependency = postal.Dependency{
-			ID:      "yarn",
-			Name:    "yarn-dependency-name",
-			SHA256:  "yarn-dependency-sha",
+			ID:      "pnpm",
+			Name:    "pnpm-dependency-name",
+			SHA256:  "pnpm-dependency-sha",
 			Stacks:  []string{"some-stack"},
-			URI:     "yarn-dependency-uri",
-			Version: "yarn-dependency-version",
+			URI:     "pnpm-dependency-uri",
+			Version: "pnpm-dependency-version",
 		}
 		dependencyManager.GenerateBillOfMaterialsCall.Returns.BOMEntrySlice = []packit.BOMEntry{
 			{
-				Name: "yarn",
+				Name: "pnpm",
 				Metadata: paketosbom.BOMMetadata{
-					URI:     "yarn-dependency-uri",
-					Version: "yarn-dependenct-version",
+					URI:     "pnpm-dependency-uri",
+					Version: "pnpm-dependenct-version",
 					Checksum: paketosbom.BOMChecksum{
 						Algorithm: paketosbom.SHA256,
-						Hash:      "yarn-dependency-sha",
+						Hash:      "pnpm-dependency-sha",
 					},
 				},
 			},
@@ -89,7 +89,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Plan: packit.BuildpackPlan{
 				Entries: []packit.BuildpackPlanEntry{
 					{
-						Name: "yarn",
+						Name: "pnpm",
 					},
 				},
 			},
@@ -97,7 +97,7 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Layers:   packit.Layers{Path: layersDir},
 		}
 
-		build = yarn.Build(dependencyManager,
+		build = pnpm.Build(dependencyManager,
 			sbomGenerator,
 			chronos.DefaultClock,
 			scribe.NewEmitter(buffer))
@@ -109,17 +109,17 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		Expect(os.RemoveAll(workingDir)).To(Succeed())
 	})
 
-	it("returns a result that installs yarn", func() {
+	it("returns a result that installs pnpm", func() {
 		result, err := build(buildContext)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(result.Layers).To(HaveLen(1))
 		layer := result.Layers[0]
 
-		Expect(layer.Name).To(Equal("yarn"))
-		Expect(layer.Path).To(Equal(filepath.Join(layersDir, "yarn")))
+		Expect(layer.Name).To(Equal("pnpm"))
+		Expect(layer.Path).To(Equal(filepath.Join(layersDir, "pnpm")))
 		Expect(layer.Metadata).To(Equal(map[string]interface{}{
-			yarn.DependencyCacheKey: "yarn-dependency-sha",
+			pnpm.DependencyCacheKey: "pnpm-dependency-sha",
 		}))
 
 		Expect(layer.SBOM.Formats()).To(Equal([]packit.SBOMFormat{
@@ -134,45 +134,45 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 		}))
 
 		Expect(dependencyManager.ResolveCall.Receives.Path).To(Equal(filepath.Join(cnbDir, "buildpack.toml")))
-		Expect(dependencyManager.ResolveCall.Receives.Id).To(Equal("yarn"))
+		Expect(dependencyManager.ResolveCall.Receives.Id).To(Equal("pnpm"))
 		Expect(dependencyManager.ResolveCall.Receives.Stack).To(Equal("some-stack"))
 
 		Expect(dependencyManager.DeliverCall.Receives.Dependency).To(Equal(postal.Dependency{
-			ID:      "yarn",
-			Name:    "yarn-dependency-name",
-			SHA256:  "yarn-dependency-sha",
+			ID:      "pnpm",
+			Name:    "pnpm-dependency-name",
+			SHA256:  "pnpm-dependency-sha",
 			Stacks:  []string{"some-stack"},
-			URI:     "yarn-dependency-uri",
-			Version: "yarn-dependency-version",
+			URI:     "pnpm-dependency-uri",
+			Version: "pnpm-dependency-version",
 		}))
 		Expect(dependencyManager.DeliverCall.Receives.CnbPath).To(Equal(cnbDir))
-		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "yarn")))
+		Expect(dependencyManager.DeliverCall.Receives.LayerPath).To(Equal(filepath.Join(layersDir, "pnpm")))
 		Expect(dependencyManager.DeliverCall.Receives.PlatformPath).To(Equal("platform"))
 
 		// Legacy SBOM
 		Expect(dependencyManager.GenerateBillOfMaterialsCall.Receives.Dependencies).To(Equal([]postal.Dependency{{
-			ID:      "yarn",
-			Name:    "yarn-dependency-name",
-			SHA256:  "yarn-dependency-sha",
+			ID:      "pnpm",
+			Name:    "pnpm-dependency-name",
+			SHA256:  "pnpm-dependency-sha",
 			Stacks:  []string{"some-stack"},
-			URI:     "yarn-dependency-uri",
-			Version: "yarn-dependency-version",
+			URI:     "pnpm-dependency-uri",
+			Version: "pnpm-dependency-version",
 		},
 		}))
 
 		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dependency).To(Equal(postal.Dependency{
-			ID:      "yarn",
-			Name:    "yarn-dependency-name",
-			SHA256:  "yarn-dependency-sha",
+			ID:      "pnpm",
+			Name:    "pnpm-dependency-name",
+			SHA256:  "pnpm-dependency-sha",
 			Stacks:  []string{"some-stack"},
-			URI:     "yarn-dependency-uri",
-			Version: "yarn-dependency-version",
+			URI:     "pnpm-dependency-uri",
+			Version: "pnpm-dependency-version",
 		}))
 		Expect(sbomGenerator.GenerateFromDependencyCall.Receives.Dir).To(Equal(layer.Path))
 
 		Expect(buffer.String()).To(ContainSubstring("Some Buildpack some-version"))
 		Expect(buffer.String()).To(ContainSubstring("Executing build process"))
-		Expect(buffer.String()).To(ContainSubstring("Installing Yarn"))
+		Expect(buffer.String()).To(ContainSubstring("Installing Pnpm"))
 	})
 
 	context("when the plan entry requires the dependency during the build and launch phases", func() {
@@ -190,21 +190,21 @@ func testBuild(t *testing.T, context spec.G, it spec.S) {
 			Expect(result.Layers).To(HaveLen(1))
 			layer := result.Layers[0]
 
-			Expect(layer.Name).To(Equal("yarn"))
-			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "yarn")))
+			Expect(layer.Name).To(Equal("pnpm"))
+			Expect(layer.Path).To(Equal(filepath.Join(layersDir, "pnpm")))
 			Expect(layer.Build).To(BeTrue())
 			Expect(layer.Launch).To(BeTrue())
 			Expect(layer.Cache).To(BeTrue())
 			Expect(layer.Metadata).To(Equal(map[string]interface{}{
-				yarn.DependencyCacheKey: "yarn-dependency-sha",
+				pnpm.DependencyCacheKey: "pnpm-dependency-sha",
 			}))
 		})
 	})
 
 	context("failure cases", func() {
-		context("when the yarn layer cannot be retrieved", func() {
+		context("when the pnpm layer cannot be retrieved", func() {
 			it.Before(func() {
-				err := os.WriteFile(filepath.Join(layersDir, "yarn.toml"), nil, 0000)
+				err := os.WriteFile(filepath.Join(layersDir, "pnpm.toml"), nil, 0000)
 				Expect(err).NotTo(HaveOccurred())
 			})
 

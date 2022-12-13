@@ -1,7 +1,7 @@
-package yarn
+package pnpm
 
 const (
-	YarnLayerName      = "yarn"
-	YarnDependency     = "yarn"
+	PnpmLayerName      = "pnpm"
+	PnpmDependency     = "pnpm"
 	DependencyCacheKey = "dependency-sha"
 )

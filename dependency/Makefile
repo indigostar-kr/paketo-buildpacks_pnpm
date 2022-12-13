@@ -1,7 +1,7 @@
 .PHONY: retrieve
 
 id:
-	@echo yarn
+	@echo pnpm
 
 retrieve:
 	@cd retrieval; \

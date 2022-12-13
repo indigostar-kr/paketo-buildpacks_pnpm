@@ -1,4 +1,4 @@
-package yarn
+package pnpm
 
 import (
 	"fmt"
@@ -36,13 +36,13 @@ func Build(
 	return func(context packit.BuildContext) (packit.BuildResult, error) {
 		logger.Title("%s %s", context.BuildpackInfo.Name, context.BuildpackInfo.Version)
 
-		yarnLayer, err := context.Layers.Get(YarnLayerName)
+		pnpmLayer, err := context.Layers.Get(PnpmLayerName)
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
 
 		planner := draft.NewPlanner()
-		entry, _ := planner.Resolve("yarn", context.Plan.Entries, nil)
+		entry, _ := planner.Resolve("pnpm", context.Plan.Entries, nil)
 		version, ok := entry.Metadata["version"].(string)
 		if !ok {
 			version = "default"
@@ -59,7 +59,7 @@ func Build(
 
 		bom := dependencyManager.GenerateBillOfMaterials(dependency)
 
-		launch, build := planner.MergeLayerTypes("yarn", context.Plan.Entries)
+		launch, build := planner.MergeLayerTypes("pnpm", context.Plan.Entries)
 
 		var buildMetadata = packit.BuildMetadata{}
 		var launchMetadata = packit.LaunchMetadata{}
@@ -71,15 +71,15 @@ func Build(
 			launchMetadata = packit.LaunchMetadata{BOM: bom}
 		}
 
-		cachedSHA, ok := yarnLayer.Metadata[DependencyCacheKey].(string)
+		cachedSHA, ok := pnpmLayer.Metadata[DependencyCacheKey].(string)
 		if ok && cachedSHA == dependency.SHA256 {
-			logger.Process("Reusing cached layer %s", yarnLayer.Path)
+			logger.Process("Reusing cached layer %s", pnpmLayer.Path)
 			logger.Break()
 
-			yarnLayer.Launch, yarnLayer.Build, yarnLayer.Cache = launch, build, build
+			pnpmLayer.Launch, pnpmLayer.Build, pnpmLayer.Cache = launch, build, build
 
 			return packit.BuildResult{
-				Layers: []packit.Layer{yarnLayer},
+				Layers: []packit.Layer{pnpmLayer},
 				Build:  buildMetadata,
 				Launch: launchMetadata,
 			}, nil
@@ -87,17 +87,17 @@ func Build(
 
 		logger.Process("Executing build process")
 
-		yarnLayer, err = yarnLayer.Reset()
+		pnpmLayer, err = pnpmLayer.Reset()
 		if err != nil {
 			return packit.BuildResult{}, err
 		}
 
-		yarnLayer.Launch, yarnLayer.Build, yarnLayer.Cache = launch, build, build
+		pnpmLayer.Launch, pnpmLayer.Build, pnpmLayer.Cache = launch, build, build
 
-		logger.Subprocess("Installing Yarn")
+		logger.Subprocess("Installing Pnpm")
 
 		duration, err := clock.Measure(func() error {
-			return dependencyManager.Deliver(dependency, context.CNBPath, yarnLayer.Path, context.Platform.Path)
+			return dependencyManager.Deliver(dependency, context.CNBPath, pnpmLayer.Path, context.Platform.Path)
 		})
 		if err != nil {
 			return packit.BuildResult{}, err
@@ -111,13 +111,13 @@ func Build(
 		}
 
 		if sbomDisabled {
-			logger.Subprocess("Skipping SBOM generation for Yarn")
+			logger.Subprocess("Skipping SBOM generation for Pnpm")
 			logger.Break()
 		} else {
-			logger.GeneratingSBOM(yarnLayer.Path)
+			logger.GeneratingSBOM(pnpmLayer.Path)
 			var sbomContent sbom.SBOM
 			duration, err = clock.Measure(func() error {
-				sbomContent, err = sbomGenerator.GenerateFromDependency(dependency, yarnLayer.Path)
+				sbomContent, err = sbomGenerator.GenerateFromDependency(dependency, pnpmLayer.Path)
 				return err
 			})
 			if err != nil {
@@ -128,18 +128,18 @@ func Build(
 			logger.Break()
 
 			logger.FormattingSBOM(context.BuildpackInfo.SBOMFormats...)
-			yarnLayer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
+			pnpmLayer.SBOM, err = sbomContent.InFormats(context.BuildpackInfo.SBOMFormats...)
 			if err != nil {
 				return packit.BuildResult{}, err
 			}
 		}
 
-		yarnLayer.Metadata = map[string]interface{}{
+		pnpmLayer.Metadata = map[string]interface{}{
 			DependencyCacheKey: dependency.SHA256,
 		}
 
 		return packit.BuildResult{
-			Layers: []packit.Layer{yarnLayer},
+			Layers: []packit.Layer{pnpmLayer},
 			Build:  buildMetadata,
 			Launch: launchMetadata,
 		}, nil
